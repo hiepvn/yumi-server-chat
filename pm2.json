@@ -1,0 +1,17 @@
+{
+  "apps": [
+    {
+      "script": "./app.js",
+      "output": "../log/out.log",
+      "error": "../log/error.log",
+      "name" : "yumi-server-chat",
+      "log_date_format": "YYYY-MM-DD HH:mm:ss",
+      "env" : {
+        "NODE_ENV" : "development",
+      },
+      "env_production" : {
+        "NODE_ENV" : "production",
+      }
+    }
+  ]
+}

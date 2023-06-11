@@ -1,0 +1,20 @@
+{
+  "name": "yumi-server-chat",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "express": "latest",
+    "socket.io": "latest",
+    "node-uuid": "latest",
+    "date-utils": "latest"
+  },
+  "scripts": {
+    "pm2-stop-dev": "pm2 stop pm2.json --env development",
+    "pm2-start-dev": "pm2 start pm2.json --env development",
+    "pm2-restart-dev": "pm2 restart pm2.json --env development",
+    "pm2-stop": "pm2 stop pm2.json --env production",
+    "pm2-start": "pm2 start pm2.json --env production",
+    "pm2-restart": "pm2 restart pm2.json --env production",
+    "pm2-clear-log": "pm2 flush"
+  }
+}
