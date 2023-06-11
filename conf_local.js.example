@@ -1,0 +1,12 @@
+
+module.exports = {
+    api_server: {
+        host: "http://192.168.151.15:9110"
+    },
+
+    IS_DEBUG: 1,
+
+    IMAGE_FOLDER: '/Users/hiepvo/hiep/projects/yumi/yumi-resources/images/',
+    IMAGE_URL:    'http://res.lucbuon.net/image/'
+
+}
