@@ -4,9 +4,13 @@ var io = require('socket.io')(http);
 
 var Conf = require('./conf.js');
 var User = require('./app/user')
-var ManageServer = require('./app/manage_server');
 
+var ManageServer = require('./app/manage_server');
 var manager = new ManageServer(io); // manage server for clients
+
+var HttpServer = require('./app/http_server');
+var simpleHttp = new HttpServer();
+
 
 app.get('/', function(req, res){
     res.send("ok");
@@ -17,26 +21,29 @@ http.listen(Conf.server.port, function() {
 });
 
 
-
 function authenticate(socket, next){
-    var id = socket.handshake.query["id"];
     var token = socket.handshake.query["token"];
-    var name = socket.handshake.query["name"];
-    var gender = socket.handshake.query["gender"];
-    var birthday = socket.handshake.query["birthday"];
-    var avatar = socket.handshake.query["avatar"];
-
-    console.log("authenticate: " + id + " " + token + " " + name + " " + gender + " " + birthday + " " + avatar);
-
-    socket.user = new User(id, token, name, gender, birthday);
-    socket.user.socket_id = socket.id;
-
-    next();
+    simpleHttp.authen(token).then(function(response) {
+        var data = response.data;
+        if (data["status"] == "success") {
+            var user = data["user"];
+            socket.user = new User(user["id"], user["name"], user["gender"], user["birthday"], user["avatar"]);
+            socket.user.socket_id = socket.id;
+            socket.user.token = token;
+            next();
+        }
+        else {
+            console.log("authenticate: token: " + token + " => fail: ", response.data);
+        }
+    }).catch(function(error){
+        console.log("authenticate: token: " + token + " => error: ", error);
+        callback({"error": error});
+    });
 }
 
 
 io.use(authenticate);
 io.on('connection', function(socket){
-    console.log('a user connected: ' + socket.user.name + ' : ' + socket.id);
+    console.log('a user connected: ' + socket.user.id + ":" + socket.user.name + ' : ' + socket.user.token);
     manager.registerClient(socket);
 });

@@ -1,16 +1,18 @@
 
 class Message {
 
-    constructor(userId, text, timestamp){
+    constructor(id, userId, content, timestamp){
+        this.id = id;
         this.userId  = userId;
-        this.body    = body;
+        this.content = content;
         this.created = timestamp;
     }
 
     toJson() {
         return {
+            "id": this.id,
             "user_id": this.userId,
-            "text":    this.body,
+            "content": this.content,
             "created": this.created
          };
     };

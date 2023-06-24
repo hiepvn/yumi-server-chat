@@ -4,9 +4,8 @@
 
 class User {
 
-    constructor(id, token, name, gender, birthday, avatar) {
+    constructor(id, name, gender, birthday, avatar) {
         this.id = id;
-        this.token = token;
         this.name = name;
         this.gender = gender;
         this.birthday = birthday;

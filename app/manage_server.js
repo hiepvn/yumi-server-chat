@@ -24,11 +24,10 @@ class ManageServer {
     constructor(io) {
         this.io = io;
         this.rooms = {}
-        this.privateRooms = {}
+        this.threads = {}
     }
 
     registerClient(socket) {
-
         // room chat
         socket.on('room_join', function(data, callback) {
             this.roomJoin(socket, data, callback);
@@ -41,8 +40,17 @@ class ManageServer {
         socket.on('room_message', function(data, callback) {
             this.roomMessage(socket, data, callback);
         }.bind(this));
+        // end room chat
 
         // private chat
+        socket.on('lobby_join', function(data, callback) {
+            this.messageLobbyJoin(socket, data, callback);
+        }.bind(this));
+
+        socket.on('lobby_leave', function(data, callback) {
+            this.messageLobbyLeave(socket, data, callback);
+        }.bind(this));
+
         socket.on('message_join', function(data, callback) {
             this.messageJoin(socket, data, callback);
         }.bind(this));
@@ -58,6 +66,8 @@ class ManageServer {
         socket.on('message_image', function(data, image, callback) {
             this.messageImage(socket, data, image, callback);
         }.bind(this));
+        // end private chat
+
 
         // disconnect
         socket.on('disconnect', function() {
@@ -116,16 +126,29 @@ class ManageServer {
 
 
     // private chat
+    messageLobbyJoin(socket, data, callback) {
+        
+    }
+
+    messageLobbyLeave(socket, data, callback) {
+        
+    }
+
+
     messageJoin(socket, data, callback) {
-        var userId1 = Number(socket.user.id);
-        var userId2 = Number(data.user_id);
-        var room = this.messageGetRoom(userId1, userId2);
+        var roomId = data["thread_id"];
+        var room = this.threads[roomId];
+        if (!room) {
+            room = new Room(roomId, 2);
+            this.threads[roomId] = room;
+        }
+
         if (!room) {
             callback({'ok': false, 'reason': 'CREATE_ROOM_FAILED'});
             return;
         }
 
-        console.log('join to private chat: ' + socket.user.id  + ' -> ' + room.id);
+        console.log('join thread: ' + socket.user.id  + ' -> ' + room.id);
 
         var result = room.enter(socket, socket.user);
         if(result === Error.NO_ERROR) {
@@ -144,36 +167,26 @@ class ManageServer {
     };
 
 
-    messageSend(socket, data, callback) {
-        var roomId = socket.roomId;
-        if (!roomId) {
+    async messageSend(socket, data, callback) {
+        const threadId = data["thread_id"];
+        if (!threadId) {
             this.callbackError(callback);
             return;
         }
 
-        var room = this.privateRooms[roomId];
+        var room = this.threads[threadId];
         if (!room) {
             this.callbackError(callback);
             return;
         }
 
-        var fromUserId = Number(socket.user.id);
-        var toUserId;
-        if (fromUserId == room.userId1) {
-            toUserId = room.userId2;
-        }
-        else {
-            toUserId = room.userId1;
-        }
-
-        var body = data["body"];
-        var comment = new Message(socket.user.id, body, Utils.getCurrentTime());
-        socket.broadcast.to(roomId).emit('private_chat_message', comment.toJson());
-        
-        var threadId = data["thread_id"];
-        simpleHttp.sendPrivateMessage(socket.user.token, threadId, toUserId, body);
-        
-        callback({'ok': true});
+        simpleHttp.messageSend(socket.user.token, data).then(function(response) {
+            socket.broadcast.to(threadId).emit('message_receive', response.data);
+            callback(response.data);
+        }).catch(function(error){
+            console.log("messageSend ERROR:", error.response.data);
+            callback({"error": error});
+        });
     };
 
 
@@ -184,7 +197,7 @@ class ManageServer {
             return;
         }
 
-        var room = this.privateRooms[roomId];
+        var room = this.threads[roomId];
         if (!room) {
             this.callbackError(callback);
             return;
@@ -223,26 +236,6 @@ class ManageServer {
     };
 
 
-    messageGetRoom(userId1, userId2) {
-        var roomId = "";
-        if (userId1 < userId2) {
-            roomId = "p_" + userId1 + "_" + userId2;
-        }
-        else {
-            roomId = "p_" + userId2 + "_" + userId1;
-        }
-        var room = this.privateRooms[roomId];
-        if (!room) {
-            room = new Room(roomId, 2);
-            room.userId1 = userId1;
-            room.userId2 = userId2;
-            this.privateRooms[roomId] = room;
-        }
-        return room;
-    }
-
-
-
     leaveRoom(socket) {
         console.log('leave room: ' + socket.user.name + ' # ' + socket.roomId);
         var room = this.rooms[socket.roomId];
@@ -258,11 +251,11 @@ class ManageServer {
 
     leaveMessage(socket) {
         console.log('leaveMessage: ' + socket.user.name + ' # ' + socket.roomId);
-        var room = this.privateRooms[socket.roomId];
+        var room = this.threads[socket.roomId];
         if (room) {
             room.leave(socket);
             if (room.members.length == 0) {
-                delete this.privateRooms[socket.roomId];
+                delete this.threads[socket.roomId];
             }
             socket.broadcast.to(room.id).emit("private_chat_leave", {"user_id":socket.user.id});
         }
@@ -297,8 +290,11 @@ class ManageServer {
         });
     };
 
-    callbackError(callback) {
-        callback({'ok': false});
+    callbackError(callback, reason="UNKNOWN") {
+        callback({
+            'ok': false,
+            'reason': reason
+        });
     };
 
 

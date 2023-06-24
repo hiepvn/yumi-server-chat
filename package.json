@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "dependencies": {
+    "axios": "^1.4.0",
+    "date-utils": "latest",
     "express": "latest",
-    "socket.io": "latest",
     "node-uuid": "latest",
-    "date-utils": "latest"
+    "socket.io": "latest"
   },
   "scripts": {
     "pm2-stop-dev": "pm2 stop pm2.json --env development",
