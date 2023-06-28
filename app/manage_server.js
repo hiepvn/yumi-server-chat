@@ -137,6 +137,11 @@ class ManageServer {
 
     messageJoin(socket, data, callback) {
         var roomId = data["thread_id"];
+        if (!roomId) {
+            this.callbackError(callback, "invalid thread_id: " + roomId);
+            return;
+        }
+
         var room = this.threads[roomId];
         if (!room) {
             room = new Room(roomId, 2);
@@ -152,7 +157,8 @@ class ManageServer {
 
         var result = room.enter(socket, socket.user);
         if(result === Error.NO_ERROR) {
-            socket.broadcast.to(room.id).emit("private_chat_join", socket.user.toJson());
+            socket.thread_id = room.id;
+            socket.broadcast.to(room.id).emit("message_join", socket.user.toJson());
             callback({'ok': true, 'users': room.getOtherUsers(socket)});
         }
         else {
@@ -168,18 +174,19 @@ class ManageServer {
 
 
     async messageSend(socket, data, callback) {
-        const threadId = data["thread_id"];
+        const threadId = socket.thread_id;
         if (!threadId) {
-            this.callbackError(callback);
+            this.callbackError(callback, "join thread first");
             return;
         }
 
         var room = this.threads[threadId];
         if (!room) {
-            this.callbackError(callback);
+            this.callbackError(callback, "room not exist");
             return;
         }
 
+        data["thread_id"] = threadId
         simpleHttp.messageSend(socket.user.token, data).then(function(response) {
             socket.broadcast.to(threadId).emit('message_receive', response.data);
             callback(response.data);
@@ -257,7 +264,7 @@ class ManageServer {
             if (room.members.length == 0) {
                 delete this.threads[socket.roomId];
             }
-            socket.broadcast.to(room.id).emit("private_chat_leave", {"user_id":socket.user.id});
+            socket.broadcast.to(room.id).emit("message_leave", {"user_id":socket.user.id});
         }
     };
 

@@ -1,6 +1,8 @@
 var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
 
 var Conf = require('./conf.js');
 var User = require('./app/user')
@@ -16,7 +18,7 @@ app.get('/', function(req, res){
     res.send("ok");
 });
 
-http.listen(Conf.server.port, function() {
+server.listen(Conf.server.port, function() {
     console.log('listening on *:' + Conf.server.port);
 });
 
