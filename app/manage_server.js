@@ -23,11 +23,18 @@ class ManageServer {
 
     constructor(io) {
         this.io = io;
-        this.rooms = {}
-        this.threads = {}
+        this.sockets = {};
+        this.rooms = {};
+        this.threads = {};
     }
 
     registerClient(socket) {
+        // prevent multi socket with same user.id
+        var otherSocket = this.sockets[socket.user.id];
+        if (otherSocket != null) {
+            otherSocket.disconnect();
+        }
+
         // room chat
         socket.on('room_join', function(data, callback) {
             this.roomJoin(socket, data, callback);
@@ -149,21 +156,21 @@ class ManageServer {
         }
 
         if (!room) {
-            callback({'ok': false, 'reason': 'CREATE_ROOM_FAILED'});
+            this.callbackError(callback, "CREATE_ROOM_FAILED");
             return;
         }
 
         console.log('join thread: ' + socket.user.id  + ' -> ' + room.id);
 
         var result = room.enter(socket, socket.user);
-        if(result === Error.NO_ERROR) {
-            socket.thread_id = room.id;
-            socket.broadcast.to(room.id).emit("message_join", socket.user.toJson());
-            callback({'ok': true, 'users': room.getOtherUsers(socket)});
+        if(result !== Error.NO_ERROR) {
+            this.callbackError(callback, "result");
+            return;
         }
-        else {
-            callback({'ok': false, 'reason': result});
-        }
+
+        socket.thread_id = room.id;
+        socket.broadcast.to(room.id).emit("message_join", socket.user.toJson());
+        callback({'ok': true, 'users': room.getOtherUsers(socket)});
     };
 
 
@@ -186,13 +193,14 @@ class ManageServer {
             return;
         }
 
-        data["thread_id"] = threadId
-        simpleHttp.messageSend(socket.user.token, data).then(function(response) {
+        data["thread_id"] = threadId;
+        data["send_push"] = room.members.length < room.maxUsers;
+        simpleHttp.messageSend(socket.user.token, data, sendPush).then(function(response) {
             socket.broadcast.to(threadId).emit('message_receive', response.data);
             callback(response.data);
         }).catch(function(error){
             console.log("messageSend ERROR:", error.response.data);
-            callback({"error": error});
+            this.callbackError(callback, error);
         });
     };
 
