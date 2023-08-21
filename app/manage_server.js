@@ -195,13 +195,13 @@ class ManageServer {
 
         data["thread_id"] = threadId;
         data["send_push"] = room.members.length < room.maxUsers;
-        simpleHttp.messageSend(socket.user.token, data, sendPush).then(function(response) {
+        simpleHttp.messageSend(socket.user.token, data).then(function(response) {
             socket.broadcast.to(threadId).emit('message_receive', response.data);
             callback(response.data);
-        }).catch(function(error){
+        }).catch(function(error) {
             console.log("messageSend ERROR:", error.response.data);
             this.callbackError(callback, error);
-        });
+        }.bind(this));
     };
 
 
